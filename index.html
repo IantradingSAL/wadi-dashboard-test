@@ -1241,9 +1241,10 @@ function mc(e){if(e.target===document.getElementById('OV'))closeM();}
       <div style="display:flex;align-items:center;gap:6px;margin-top:5px;margin-bottom:2px;font-size:12px;color:var(--green2)">📧 سيتم إرسال إشعار إلكتروني إلى بريدك لتأكيد استلام طلبك</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:13px">
         <div><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:5px">نوع الطلب *</div>
-          <select id="c-type" class="fi" style="appearance:none;-webkit-appearance:none">
+          <select id="c-type" class="fi" style="appearance:none;-webkit-appearance:none" onchange="showRequiredDocs(this.value)">
             ${(typeof getCats==='function'?getCats():[{id:'complaint',icon:'⚠️',label:'شكوى'},{id:'welfare',icon:'🤝',label:'رعاية اجتماعية'},{id:'permit',icon:'🏗️',label:'ترخيص'},{id:'inquiry',icon:'❓',label:'استفسار'}]).map(function(c){return '<option value="'+c.id+'">'+c.icon+' '+c.label+'</option>';}).join('')}
             </select></div>
+      <div id="required-docs-box" style="display:none;margin:4px 0 12px;border-radius:10px;overflow:hidden;font-size:13px"></div>
         <div><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:5px">العنوان</div>
           <input type="text" id="c-addr" class="fi" placeholder="حارة، منطقة…"></div>
       </div>
@@ -1852,6 +1853,7 @@ const WADI_CATS_DEFAULT = [
   {id:'welfare',   icon:'🤝', label:'رعاية اجتماعية'},
   {id:'permit',    icon:'🏗️', label:'ترخيص'},
   {id:'inquiry',   icon:'❓', label:'استفسار'},
+  {id:'ifada',     icon:'📜', label:'إفادة عقارية'},
 ];
 function getCats() {
   // Return cached value (loaded from Supabase on login)
@@ -2510,7 +2512,7 @@ async function sendStaffNotifEmails(caseData, eventType) {
 
 // Map any cat ID to a valid DB type (constraint: complaint/welfare/permit/inquiry)
 function getDbType(catId) {
-  const base = ['complaint','welfare','permit','inquiry'];
+  const base = ['complaint','welfare','permit','inquiry','ifada'];
   if (base.includes(catId)) return catId;
   // Custom cats: try to guess from label, else default to 'complaint'
   const cat = getCats().find(function(c){ return c.id === catId; });
@@ -2788,6 +2790,102 @@ function printCase(id) {
 </body>
 </html>`);
   w.document.close();
+}
+
+
+// ── REQUIRED DOCUMENTS PER CATEGORY ─────────────────────────────────────────
+const REQUIRED_DOCS = {
+  ifada: {
+    label: 'إفادة عقارية',
+    icon: '📜',
+    description: 'تُستخدم لإثبات الملكية العقارية أو وضع العقار القانوني',
+    docs: [
+      {name: 'صورة عن الهوية الشخصية', required: true,  icon: '🪪'},
+      {name: 'صورة عن سند الملكية (طابو)',required: true, icon: '📄'},
+      {name: 'صورة عن وثيقة المساحة',   required: true,  icon: '📐'},
+      {name: 'شهادة عائلية (قيد نفوس)', required: false, icon: '👨‍👩‍👧'},
+      {name: 'وكالة قانونية (إن وُجدت)',required: false, icon: '⚖️'},
+      {name: 'رسم طابو حديث (6 أشهر)',  required: true,  icon: '🗓️'},
+    ]
+  },
+  permit: {
+    label: 'رخصة بناء / ترخيص',
+    icon: '🏗️',
+    description: 'مطلوبة لأي أعمال بناء أو هدم أو تعديل',
+    docs: [
+      {name: 'صورة عن الهوية الشخصية',    required: true,  icon: '🪪'},
+      {name: 'مخطط هندسي موقّع من مهندس', required: true,  icon: '📐'},
+      {name: 'سند الملكية',               required: true,  icon: '📄'},
+      {name: 'موافقة الجيران (إن لزم)',    required: false, icon: '🤝'},
+      {name: 'صور فوتوغرافية للموقع',     required: false, icon: '📷'},
+    ]
+  },
+  welfare: {
+    label: 'رعاية اجتماعية',
+    icon: '🤝',
+    description: 'طلبات الدعم والمساعدة الاجتماعية',
+    docs: [
+      {name: 'صورة عن الهوية الشخصية',   required: true,  icon: '🪪'},
+      {name: 'شهادة عائلية (قيد نفوس)',  required: true,  icon: '👨‍👩‍👧'},
+      {name: 'وثيقة إثبات السكن',         required: true,  icon: '🏠'},
+      {name: 'وثيقة الدخل / شهادة فقر',  required: false, icon: '📋'},
+      {name: 'تقرير طبي (إن لزم)',       required: false, icon: '🏥'},
+    ]
+  },
+  complaint: {
+    label: 'شكوى',
+    icon: '⚠️',
+    description: 'تقديم شكوى رسمية للبلدية',
+    docs: [
+      {name: 'صورة عن الهوية الشخصية', required: true,  icon: '🪪'},
+      {name: 'صور أو وثائق داعمة',     required: false, icon: '📷'},
+    ]
+  },
+  inquiry: {
+    label: 'استفسار',
+    icon: '❓',
+    description: 'استفسار عام',
+    docs: [
+      {name: 'صورة عن الهوية الشخصية', required: false, icon: '🪪'},
+    ]
+  },
+};
+
+// Show required docs when citizen selects a type
+function showRequiredDocs(typeId) {
+  var el = document.getElementById('required-docs-box');
+  if (!el) return;
+  var config = REQUIRED_DOCS[typeId];
+  if (!config || !config.docs || !config.docs.length) {
+    el.style.display = 'none';
+    return;
+  }
+  var required = config.docs.filter(function(d){ return d.required; });
+  var optional = config.docs.filter(function(d){ return !d.required; });
+  
+  el.style.display = 'block';
+  el.innerHTML = 
+    '<div style="background:linear-gradient(120deg,#0f4d82,#1a6eb5);color:#fff;padding:10px 14px;border-radius:10px 10px 0 0;font-weight:800;font-size:13px">' +
+    config.icon + ' المستندات المطلوبة — ' + config.label + '</div>' +
+    '<div style="background:#f8faff;border:1.5px solid #daeaf8;border-top:none;border-radius:0 0 10px 10px;padding:12px 14px">' +
+    '<div style="font-size:12px;color:#555;margin-bottom:8px">' + config.description + '</div>' +
+    (required.length ? 
+      '<div style="font-size:12px;font-weight:700;color:#0f4d82;margin-bottom:6px">✅ إلزامية:</div>' +
+      required.map(function(d){ 
+        return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #e8eef8;font-size:13px">' +
+          '<span>' + d.icon + '</span><span>' + d.name + '</span>' +
+          '<span style="margin-right:auto;font-size:10px;background:#fdeaea;color:#b02020;padding:2px 7px;border-radius:4px;font-weight:700">مطلوب</span></div>';
+      }).join('') : '') +
+    (optional.length ? 
+      '<div style="font-size:12px;font-weight:700;color:#555;margin:8px 0 6px">📎 اختيارية (تُقوّي طلبك):</div>' +
+      optional.map(function(d){
+        return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #eee;font-size:13px;color:#666">' +
+          '<span>' + d.icon + '</span><span>' + d.name + '</span>' +
+          '<span style="margin-right:auto;font-size:10px;background:#eef0f6;color:#666;padding:2px 7px;border-radius:4px">اختياري</span></div>';
+      }).join('') : '') +
+    '<div style="font-size:11px;color:#888;margin-top:8px;padding-top:8px;border-top:1px dashed #ddd">' +
+    '💡 يمكنك إرفاق المستندات في حقل الملفات أدناه أو إحضارها لمركز البلدية</div>' +
+    '</div>';
 }
 
 </script>
