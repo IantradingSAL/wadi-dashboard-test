@@ -1521,6 +1521,26 @@ async function confirmPhone(){
     if(tl.length){h+='<div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:700">🕒 سجل النشاط</div><div style="display:flex;flex-direction:column;gap:10px">';h+=tl.slice().reverse().slice(0,8).map(t=>'<div style="display:flex;gap:12px;align-items:flex-start"><div style="width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:5px"></div><div><div style="font-size:13px;font-weight:600">'+t.a+'</div><div style="font-size:11px;color:var(--text3)">'+t.d+'</div></div></div>').join('');h+='</div>';}
     else h+='<div style="color:var(--text3);font-size:13px;padding:8px 0">لا يوجد نشاط بعد</div>';
     h+='</div>';
+    // Add update section (upload docs + notes)
+    h += '<div style="border-top:2px solid var(--border);margin-top:16px;padding-top:16px">';
+    h += '<div style="font-size:14px;font-weight:800;color:var(--blue2);margin-bottom:12px">📤 تحديث طلبك</div>';
+    // Add note
+    h += '<div style="margin-bottom:12px">';
+    h += '<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">💬 إضافة ملاحظة أو معلومة إضافية</div>';
+    h += '<textarea id="cit-update-note" placeholder="اكتب أي معلومة إضافية أو تحديث تريد إرساله للبلدية…" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-family:var(--font);font-size:13px;resize:vertical;min-height:80px;outline:none;direction:rtl" onfocus="this.style.borderColor=\'var(--blue)\'"></textarea>';
+    h += '</div>';
+    // Upload docs
+    h += '<div style="margin-bottom:12px">';
+    h += '<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">📎 إرفاق مستندات إضافية</div>';
+    h += '<label style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg2);border:1.5px dashed var(--blue);border-radius:10px;cursor:pointer;font-size:13px;color:var(--blue)">';
+    h += '<input type="file" id="cit-update-files" multiple accept="image/*,.pdf,.doc,.docx" style="display:none" onchange="showCitUpdateFiles(this)">';
+    h += '📂 اضغط لاختيار الملفات (صور، PDF، وثائق)</label>';
+    h += '<div id="cit-update-file-list" style="margin-top:6px;font-size:12px;color:var(--text3)"></div>';
+    h += '</div>';
+    // Submit button
+    h += '<button onclick="submitCitUpdate(\'' + data.id + '\',\'' + (data.phone||'') + '\')" style="width:100%;padding:12px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">✅ إرسال التحديث</button>';
+    h += '<div id="cit-update-msg" style="margin-top:8px;font-size:13px;text-align:center;min-height:18px"></div>';
+    h += '</div>';
     el.innerHTML=h;
   }catch(e){el.innerHTML='<div style="color:var(--danger);font-size:13px;text-align:center">خطأ: '+e.message+'</div>';}
 }
@@ -2916,6 +2936,87 @@ function showRequiredDocs(typeId) {
     '<div style="font-size:11px;color:#888;margin-top:8px;padding-top:8px;border-top:1px dashed #ddd">' +
     '💡 يمكنك إرفاق المستندات في حقل الملفات أدناه أو إحضارها لمركز البلدية</div>' +
     '</div>';
+}
+
+
+// ── CITIZEN UPDATE FUNCTIONS ──────────────────────────────────────────────────
+function showCitUpdateFiles(input) {
+  var list = document.getElementById('cit-update-file-list');
+  if (!list || !input.files.length) return;
+  list.innerHTML = Array.from(input.files).map(function(f){
+    return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0">📄 ' + f.name + ' <span style="color:var(--text3);font-size:11px">(' + (f.size/1024).toFixed(0) + ' KB)</span></div>';
+  }).join('');
+}
+
+async function submitCitUpdate(caseId, casePhone) {
+  var note = document.getElementById('cit-update-note') ? document.getElementById('cit-update-note').value.trim() : '';
+  var filesInput = document.getElementById('cit-update-files');
+  var files = filesInput ? Array.from(filesInput.files) : [];
+  var msg = document.getElementById('cit-update-msg');
+
+  if (!note && !files.length) {
+    if (msg) { msg.style.color='var(--danger)'; msg.textContent='⚠️ أضف ملاحظة أو مستنداً على الأقل'; }
+    return;
+  }
+
+  var btn = document.querySelector('[onclick^="submitCitUpdate"]');
+  if (btn) { btn.disabled=true; btn.textContent='⏳ جاري الإرسال…'; }
+  if (msg) { msg.style.color='var(--text3)'; msg.textContent='⏳ جاري رفع التحديث…'; }
+
+  try {
+    // Get current case
+    var res = await sb.from('cases').select('timeline,documents,notes').eq('id', caseId).single();
+    if (res.error) throw res.error;
+    var caseData = res.data;
+    var today = new Date().toISOString().slice(0,10);
+    var tl = Array.from(caseData.timeline || []);
+    var docs = Array.from(caseData.documents || []);
+    var updates = {};
+
+    // Add note to timeline
+    if (note) {
+      tl.push({a: '💬 تحديث من المواطن: ' + note, by: 'المواطن', d: today, cls: 'citizen'});
+      updates.timeline = tl;
+      // Also append to notes
+      var existingNotes = caseData.notes || '';
+      updates.notes = (existingNotes ? existingNotes + String.fromCharCode(10,10) : '') + '[' + today + ' - المواطن]: ' + note;
+    }
+
+    // Upload new files
+    if (files.length) {
+      if (msg) msg.textContent = '⏳ جاري رفع الملفات…';
+      for (var fi = 0; fi < files.length; fi++) {
+        var f = files[fi];
+        var ext = f.name.split('.').pop().toLowerCase();
+        var path = caseId + '/update_' + Date.now() + '_' + fi + '.' + ext;
+        var upRes = await sb.storage.from('case-documents').upload(path, f, {upsert:true});
+        if (!upRes.error) {
+          var urlRes = sb.storage.from('case-documents').getPublicUrl(path);
+          docs.push({name:f.name, path:path, url:urlRes.data.publicUrl, type:ext, size:f.size, by:'citizen', date:today});
+        }
+      }
+      tl.push({a: '📎 رُفع ' + files.length + ' مستند من المواطن', by:'المواطن', d:today, cls:'citizen'});
+      updates.documents = docs;
+      updates.timeline = tl;
+    }
+
+    // Save to Supabase
+    var saveRes = await sb.from('cases').update(updates).eq('id', caseId);
+    if (saveRes.error) throw saveRes.error;
+
+    if (msg) { msg.style.color='var(--green2)'; msg.textContent='✅ تم إرسال تحديثك بنجاح! سيتم مراجعته من قِبل البلدية.'; }
+    if (btn) { btn.disabled=false; btn.textContent='✅ تم الإرسال'; }
+    // Clear inputs
+    var noteEl = document.getElementById('cit-update-note');
+    if (noteEl) noteEl.value = '';
+    var listEl = document.getElementById('cit-update-file-list');
+    if (listEl) listEl.innerHTML = '';
+    if (filesInput) filesInput.value = '';
+
+  } catch(e) {
+    if (msg) { msg.style.color='var(--danger)'; msg.textContent='خطأ: ' + e.message; }
+    if (btn) { btn.disabled=false; btn.textContent='✅ إرسال التحديث'; }
+  }
 }
 
 </script>
