@@ -1386,11 +1386,29 @@ function mc(e){if(e.target===document.getElementById('OV'))closeM();}
       
 
       <!-- WHAT'S NEW ON HOME PAGE -->
-      
+      <div style="text-align:center;margin-top:20px">
+        <button onclick="openWhatsNewModal()" style="background:transparent;border:1.5px solid var(--blue);color:var(--blue);border-radius:20px;padding:10px 28px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);display:inline-flex;align-items:center;gap:8px;transition:all .2s" onmouseover="this.style.background='var(--blue3)'" onmouseout="this.style.background='transparent'">
+          ✨ ما الجديد في هذا الإصدار
+        </button>
+      </div>
 
       </div>
     </div>
   </div>
+
+<!-- WHAT'S NEW MODAL -->
+<div id="wn-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeWnModal()">
+  <div style="background:#fff;border-radius:20px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;direction:rtl;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:1;border-radius:20px 20px 0 0">
+      <button onclick="closeWnModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='none'">✕</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:18px;font-weight:800;color:#1a1a2e">ما الجديد</span>
+        <span style="font-size:22px">✨</span>
+      </div>
+    </div>
+    <div id="wn-modal-body" style="padding:16px 20px"></div>
+  </div>
+</div>
 </div>
 <script>
 
@@ -3830,6 +3848,74 @@ async function loadWhatsNewFromDB() {
 
 
 function wnDelNew(btn){var p=btn.parentElement;if(p&&p.parentElement)p.parentElement.remove();}
+
+// ── WHAT'S NEW MODAL (Welcome Page) ──────────────────────────────────────────
+const WN_VERSIONS = [
+  {
+    version: '2.5', date: 'أبريل 2026', color: '#eef5ff', badgeColor: '#3b82f6',
+    features: [
+      {icon:'📜', title:'إفادة عقارية', desc:'خدمة جديدة — تقديم طلب إفادة عقارية مع قائمة المستندات المطلوبة تلقائياً'},
+      {icon:'📋', title:'قائمة المستندات المطلوبة', desc:'عند اختيار نوع الطلب تظهر المستندات الإلزامية والاختيارية في نموذج التقديم ولوحة التحكم'},
+      {icon:'📤', title:'تحديث الطلب من المواطن', desc:'يمكن للمواطن إضافة ملاحظات ورفع مستندات جديدة على طلبه بعد تقديمه'},
+      {icon:'📊', title:'تبويب تحديثات المواطنين', desc:'موظفو البلدية يرون جميع تحديثات المواطنين في تبويب مخصص'},
+      {icon:'🖨️', title:'طباعة الطلب', desc:'طباعة ملف PDF احترافي لأي طلب يشمل المعلومات والتوقيعات والسجل الكامل'},
+      {icon:'📧', title:'إشعارات البريد الإلكتروني', desc:'إشعارات تلقائية للمواطن والموظفين عند كل حدث مهم عبر Brevo'},
+    ]
+  },
+  {
+    version: '2.0', date: 'مارس 2026', color: '#f0fdf4', badgeColor: '#22c55e',
+    features: [
+      {icon:'🎭', title:'نظام الأدوار المتقدم', desc:'إنشاء أدوار مخصصة مع 27 صلاحية وتخصيص كل موظف بشكل فردي'},
+      {icon:'👥', title:'إدارة الموظفين الكاملة', desc:'إضافة وتعديل وإيقاف الحسابات مع تغيير الأدوار والصلاحيات'},
+      {icon:'📋', title:'إدارة التصنيفات', desc:'إضافة وتعديل وحذف أنواع الطلبات ديناميكياً — تُحفظ في Supabase'},
+      {icon:'🔔', title:'إشعارات واتساب', desc:'إعداد قنوات إشعار واتساب لكل دور'},
+      {icon:'📊', title:'نشاط الموظفين', desc:'متابعة نشاط كل موظف وسجل التعديلات'},
+      {icon:'🌐', title:'بوابة المواطن', desc:'بوابة مستقلة لتقديم ومتابعة الطلبات مع التحقق برقم الهاتف'},
+    ]
+  },
+];
+
+function openWhatsNewModal() {
+  var modal = document.getElementById('wn-modal');
+  var body = document.getElementById('wn-modal-body');
+  if (!modal || !body) return;
+  
+  body.innerHTML = WN_VERSIONS.map(function(v) {
+    return '<div style="background:' + v.color + ';border-radius:14px;padding:14px 16px;margin-bottom:16px">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+      + '<div>'
+      + '<div style="font-size:16px;font-weight:800;color:#1a1a2e">الإصدار ' + v.version + '</div>'
+      + '<div style="font-size:12px;color:#888;margin-top:2px">' + v.date + '</div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+      + '<span style="background:' + v.badgeColor + ';color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">' + v.features.length + ' ميزة</span>'
+      + '<span style="font-size:26px">🚀</span>'
+      + '</div>'
+      + '</div>'
+      + '<div style="background:#fff;border-radius:10px;overflow:hidden">'
+      + v.features.map(function(f, i) {
+          return '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px' + (i < v.features.length-1 ? ';border-bottom:1px solid #f0f0f0' : '') + '">'
+            + '<div style="flex:1">'
+            + '<div style="font-size:14px;font-weight:700;color:#1a1a2e;margin-bottom:3px">' + f.title + '</div>'
+            + '<div style="font-size:12px;color:#666;line-height:1.6">' + f.desc + '</div>'
+            + '</div>'
+            + '<div style="width:38px;height:38px;border-radius:10px;background:#f8f8f8;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">' + f.icon + '</div>'
+            + '</div>';
+        }).join('')
+      + '</div>'
+      + '</div>';
+  }).join('');
+  
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeWnModal() {
+  var modal = document.getElementById('wn-modal');
+  if (modal) modal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
 </script>
 <div style="position:fixed;bottom:0;left:0;right:0;background:rgba(15,77,130,0.95);color:rgba(255,255,255,0.6);text-align:center;padding:8px;font-size:12px;z-index:9999;pointer-events:none;direction:ltr">Powered by <strong style="color:#fff">IanTrading SAL</strong> &nbsp;·&nbsp; All rights reserved © 2026</div>
 </body>
