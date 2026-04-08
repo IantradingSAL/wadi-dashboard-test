@@ -654,7 +654,7 @@ function avc(n){if(!n)return AVS[0];let h=0;for(let c of n)h=(h*31+c.charCodeAt(
 function ini(n){if(!n)return'?';return n.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('');}
 function bH(s){const m={new:'bn','in-progress':'bip',review:'br2','pending-approval':'bpa',resolved:'bdo',closed:'bc'};return`<span class="badge ${m[s]||'bc'}"><span class="bd"></span>${SL[s]||s}</span>`;}
 function pH(p){const c={high:'ph',medium:'pm',low:'pl'};const i={high:'▲',medium:'●',low:'▼'};return`<span class="pr2 ${c[p]||'pm'}">${i[p]||'●'} ${PL[p]||p}</span>`;}
-function tH(t){const cl={complaint:'tc',welfare:'tw2',permit:'tp',inquiry:'ti'};return`<span class="tt ${cl[t]||''}">${TL[t]||t}</span>`;}
+function tH(t){const cl={complaint:'tc',welfare:'tw2',permit:'tp',inquiry:'ti',ifada:'tp'};const labels={complaint:'⚠️ شكوى',welfare:'🤝 رعاية اجتماعية',permit:'🏗️ ترخيص',inquiry:'❓ استفسار',ifada:'📜 إفادة عقارية'};return`<span class="tt ${cl[t]||''}">${labels[t]||TL[t]||t}</span>`;}
 function aH(c){if(!NA.includes(c.type)||!c.approval_state||c.approval_state==='none')return`<span class="ac ana">—</span>`;
 if(c.approval_state==='pending')return`<span class="ac ap">⏳</span>`;
 if(c.approval_state==='approved')return`<span class="ac ay">✓</span>`;
@@ -754,6 +754,36 @@ function openDetail(id){
     <div class="fg"><div class="fl">وصف الطلب</div><div class="fv" style="white-space:pre-wrap">${c.description||'—'}</div></div>
     <div class="g2">
       <div><div class="fl">نوع الطلب</div>${tH(c.type)}</div>
+      ${(function(){
+        var cfg = (typeof REQUIRED_DOCS !== "undefined") ? REQUIRED_DOCS[c.type] : null;
+        if (!cfg || !cfg.docs || !cfg.docs.length) return "";
+        var req = cfg.docs.filter(function(d){return d.required;});
+        var opt = cfg.docs.filter(function(d){return !d.required;});
+        var html = '<div style="grid-column:1/-1;margin:8px 0 4px">'
+          + '<div style="background:linear-gradient(120deg,#0f4d82,#1a6eb5);color:#fff;padding:8px 14px;border-radius:10px 10px 0 0;font-weight:800;font-size:12px">'
+          + cfg.icon + ' المستندات المطلوبة — ' + cfg.label
+          + '</div><div style="background:#f8faff;border:1.5px solid #daeaf8;border-top:none;border-radius:0 0 10px 10px;padding:10px 14px">'
+          + '<div style="font-size:11px;color:#666;margin-bottom:8px">' + cfg.description + '</div>';
+        if (req.length) {
+          html += '<div style="font-size:11px;font-weight:700;color:#0f4d82;margin-bottom:5px">✅ إلزامية:</div>';
+          req.forEach(function(d){
+            html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #e8eef8;font-size:12px">'
+              + '<span>' + d.icon + '</span><span>' + d.name + '</span>'
+              + '<span style="margin-right:auto;font-size:10px;background:#fdeaea;color:#b02020;padding:1px 7px;border-radius:4px;font-weight:700">مطلوب</span></div>';
+          });
+        }
+        if (opt.length) {
+          html += '<div style="font-size:11px;font-weight:700;color:#555;margin:7px 0 5px">📎 اختيارية:</div>';
+          opt.forEach(function(d){
+            html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #eee;font-size:12px;color:#666">'
+              + '<span>' + d.icon + '</span><span>' + d.name + '</span>'
+              + '<span style="margin-right:auto;font-size:10px;background:#eef0f6;color:#666;padding:1px 7px;border-radius:4px">اختياري</span></div>';
+          });
+        }
+        html += '<div style="font-size:10px;color:#999;margin-top:7px;padding-top:6px;border-top:1px dashed #ddd">';
+        html += '💡 يمكن إرفاق المستندات في قسم الملفات أدناه</div></div></div>';
+        return html;
+      })()}
       <div><div class="fl">الأولوية</div>${pH(c.priority)}</div>
       <div><div class="fl">المسؤول</div><div class="fv">${c.assigned||'—'}</div></div>
       <div><div class="fl">التاريخ</div><div class="fv ltr">${(c.created_at||'').slice(0,10)}</div></div>
