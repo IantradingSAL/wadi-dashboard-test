@@ -251,10 +251,11 @@ select.fi{cursor:pointer;appearance:none;-webkit-appearance:none;}
       <div class="ni" onclick="navType(this,'permit')"><span class="nii">🏗️</span> التراخيص <span class="nb" id="nb-permit">—</span></div>
       <div class="ni" onclick="navType(this,'inquiry')"><span class="nii">❓</span> الاستفسارات <span class="nb" id="nb-inquiry">—</span></div>
       <div class="ns">الإجراءات</div>
-      <div class="ni" id="nav-whats-new" onclick="openWhatsNew()" style="display:none"><span class="nii">🆕</span> ما الجديد <span id="wn-badge" style="background:#e74c3c;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none">!</span></div>
+      <div class="ni" id="nav-whats-new" onclick="openWhatsNew()"><span class="nii">🆕</span> ما الجديد <span id="wn-badge" style="background:#e74c3c;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none">!</span></div>
       <div class="ni" id="nav-add" onclick="openAdd()"><span class="nii">➕</span> إضافة طلب</div>
       <div class="ni" id="nav-users" onclick="openUsers()" style="display:none"><span class="nii">👥</span> إدارة المستخدمين</div>
       <div class="ni" id="nav-activity" onclick="openActivityTracking()" style="display:none"><span class="nii">📊</span> نشاط الموظفين</div>
+      <div class="ni" id="nav-cit-updates" onclick="openCitizenUpdates()" style="display:none"><span class="nii">📬</span> تحديثات المواطنين <span id="cit-updates-badge" style="background:#e74c3c;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;display:none">!</span></div>
       <div class="ni" id="nav-audit" onclick="openAuditLog()" style="display:none"><span class="nii">🧾</span> سجل التعديلات</div>
       <div class="ni" id="nav-cit-msgs" onclick="openCitMessages()" style="display:none"><span class="nii">💬</span> رسائل المواطنين <span id="cit-msg-badge" style="background:#e74c3c;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;margin-right:4px;display:none">0</span></div>
       <div class="ni" id="nav-wa" onclick="openWhatsAppRoles()" style="display:none"><span class="nii">📱</span> إشعارات واتساب</div>
@@ -366,7 +367,16 @@ const PER=12;
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function toast(m,t='ok'){const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+t;setTimeout(()=>el.className='toast',3000);}
 function sv(s){document.getElementById('SV').classList.toggle('show',s);}
-function tick(){document.getElementById('LD').textContent=new Date().toLocaleString('ar-LB',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}
+function tick(){
+  // Check for citizen updates badge
+  try{
+    var hasUpdates=(cases||[]).some(function(c){
+      return (c.timeline||[]).some(function(t){return t.cls==="citizen"||t.by==="المواطن";});
+    });
+    var badge=document.getElementById("cit-updates-badge");
+    if(badge)badge.style.display=hasUpdates?"inline":"none";
+  }catch(e){}
+document.getElementById('LD').textContent=new Date().toLocaleString('ar-LB',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}
 function getRoleCfg(){return ROLE_CFG[userRole]||ROLE_CFG.officer;}
 function canDo(action){return !!getRoleCfg()[action];}
 function guard(action,msg){
@@ -381,6 +391,7 @@ function applyRoleVisibility(){
   show('#nav-add',R.add,'flex');
   show('#BADD',R.add,'inline-flex');
   show('#nav-users',R.admin,'flex');
+  show('#nav-cit-updates',(R.admin||R.A),'flex');
   show('#nav-whats-new',true,'flex'); // visible to all
   show('#nav-activity',R.activity,'flex');
   show('#nav-audit',R.audit,'flex');
@@ -1210,6 +1221,7 @@ function openSettings(){
       <div class="ron" style="margin-top:14px">هذه النافذة للعرض فقط داخل هذا الإصدار الثابت من الملف.</div>
       <div style="display:flex;gap:9px;margin-top:12px">
         <button class="btn bg" style="flex:1;justify-content:center" onclick="closeM()">إغلاق</button>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="closeM();openEditWhatsNew()">✨ تعديل قسم ما الجديد</button>
       </div>
     </div>`;
   document.getElementById('OV').classList.add('open');
@@ -1277,8 +1289,10 @@ function mc(e){if(e.target===document.getElementById('OV'))closeM();}
           </div>
         </div>
       </div>
-      <div id="track-res" style="margin-top:14px"></div>
+      
     </div>
+
+    
 
     <!-- SUBMIT REQUEST -->
     <div style="background:#fff;border:1px solid var(--border);border-radius:16px;padding:22px" id="submit-form-wrap">
@@ -1364,13 +1378,15 @@ function mc(e){if(e.target===document.getElementById('OV'))closeM();}
         </div>
         <div onclick="showStaffLogin()" style="background:#fff;border:2px solid var(--green);border-radius:16px;padding:28px 20px;cursor:pointer;transition:all .15s" onmouseover="this.style.background='var(--green3)'" onmouseout="this.style.background='#fff'">
           <div style="font-size:40px;margin-bottom:12px">🔐</div>
+          
           <div style="font-size:17px;font-weight:800;color:var(--green2);margin-bottom:6px">دخول الموظفين</div>
           <div style="font-size:13px;color:var(--text3)">لوحة تحكم البلدية</div>
         </div>
 
-      <div style="margin-top:20px;text-align:center">
-        
-      </div>
+      
+
+      <!-- WHAT'S NEW ON HOME PAGE -->
+      
 
       </div>
     </div>
@@ -1379,7 +1395,13 @@ function mc(e){if(e.target===document.getElementById('OV'))closeM();}
 <script>
 
 
-// ── SETUP FUNCTIONS ───────────────────────────────────────────────────────────
+// ── SETUP FUNCTIONS ─────────────────────────────────────────────────────────
+// Render What's New on CP page immediately
+document.addEventListener('DOMContentLoaded', function(){
+  renderWhatsNewAdmin();
+  renderWhatsNewCitizen();
+});
+// ──
 
 
 
@@ -2536,6 +2558,7 @@ async function loadOfficers() {
 
 // ── SIDEBAR CATEGORIES BUTTON ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
+  renderWhatsNewCitizen();
   // Update citizen type select with dynamic categories
   updateCitizenTypeSelect();
   // Add ⚙️ إدارة button next to التصنيفات header
@@ -3457,7 +3480,366 @@ async function loadProfileCitUpdates() {
   } catch(e) { if(el) el.textContent='تعذر التحميل'; }
 }
 
+
+// ── UPDATE CITIZEN MESSAGES BADGE ────────────────────────────────────────────
+async function updateCitMsgBadge() {
+  try {
+    var res = await sb.from('cases')
+      .select('timeline')
+      .order('id', {ascending:false})
+      .limit(100);
+    if (res.error || !res.data) return;
+    var count = 0;
+    res.data.forEach(function(c) {
+      (c.timeline||[]).forEach(function(t) {
+        if ((t.cls === 'citizen' || t.by === 'المواطن') && t.d === new Date().toISOString().slice(0,10)) {
+          count++;
+        }
+      });
+    });
+    var badge = document.getElementById('cit-msg-badge');
+    if (badge) {
+      badge.style.display = count > 0 ? 'inline' : 'none';
+      badge.textContent = count;
+    }
+  } catch(e) {}
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CITIZEN UPDATES TAB + WHAT'S NEW PAGE
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── CITIZEN UPDATES ────────────────────────────────────────────────────────── 
+async function openCitizenUpdates() {
+  document.getElementById('MT').textContent = 'تحديثات المواطنين';
+  document.getElementById('MB').innerHTML =
+    '<div style="text-align:center;padding:20px;color:var(--text3)">⏳ جاري التحميل…</div>';
+  document.getElementById('OV').classList.add('open');
+
+  try {
+    var res = await sb.from('cases')
+      .select('id,name,phone,type,status,timeline,documents,notes,created_at')
+      .order('created_at', {ascending: false})
+      .limit(100);
+    if (res.error) throw res.error;
+
+    // Filter cases that have citizen updates (timeline entries with cls:'citizen')
+    var updated = (res.data || []).filter(function(c) {
+      var tl = c.timeline || [];
+      return tl.some(function(t) { return t.cls === 'citizen' || (t.by === 'المواطن'); });
+    });
+
+    if (!updated.length) {
+      document.getElementById('MB').innerHTML =
+        '<div style="text-align:center;padding:40px;color:var(--text3)">' +
+        '<div style="font-size:48px;margin-bottom:12px">📭</div>' +
+        '<div style="font-size:15px;font-weight:700">لا يوجد تحديثات من المواطنين</div>' +
+        '<div style="font-size:13px;margin-top:6px">ستظهر هنا عندما يضيف مواطن ملاحظة أو مستنداً</div>' +
+        '</div>';
+      return;
+    }
+
+    var html = '<div style="display:flex;flex-direction:column;gap:10px">';
+    updated.forEach(function(c) {
+      var tl = c.timeline || [];
+      var citizenUpdates = tl.filter(function(t) {
+        return t.cls === 'citizen' || t.by === 'المواطن';
+      });
+      var docs = (c.documents || []).filter(function(d) { return d.by === 'citizen'; });
+      var typeLabel = typeof getTLabel === 'function' ? getTLabel(c.type) : c.type;
+      var statusLabel = (typeof SL !== 'undefined' ? SL : {})[c.status] || c.status;
+
+      html += '<div style="background:var(--bg2);border:1.5px solid var(--blue3);border-radius:12px;padding:14px;cursor:pointer" onclick="openDetail(' + c.id + ')">';
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">';
+      html += '<div style="width:38px;height:38px;border-radius:50%;background:var(--blue3);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">';
+      html += (c.name || '?').split(' ').slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase() || '?';
+      html += '</div>';
+      html += '<div style="flex:1;min-width:100px">';
+      html += '<div style="font-weight:700;font-size:14px">' + (c.name || '—') + '</div>';
+      html += '<div style="font-size:11px;color:var(--text3)">طلب #' + c.id + ' · ' + typeLabel + '</div>';
+      html += '</div>';
+      html += '<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:var(--blue3);color:var(--blue)">' + statusLabel + '</span>';
+      html += '<span style="font-size:11px;background:#fff4e0;color:var(--warn);padding:3px 10px;border-radius:20px;font-weight:700">' + citizenUpdates.length + ' تحديث</span>';
+      html += '</div>';
+
+      // Show citizen updates
+      html += '<div style="display:flex;flex-direction:column;gap:6px">';
+      citizenUpdates.slice(-3).forEach(function(t) {
+        var isDoc = t.a && t.a.indexOf('📎') >= 0;
+        var isNote = t.a && t.a.indexOf('💬') >= 0;
+        html += '<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:#fff;border-radius:8px;border:1px solid var(--border)">';
+        html += '<span style="font-size:14px;flex-shrink:0">' + (isDoc ? '📎' : isNote ? '💬' : '🔔') + '</span>';
+        html += '<div style="flex:1;min-width:0">';
+        html += '<div style="font-size:12.5px;color:var(--text)">' + (t.a || '') + '</div>';
+        html += '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + (t.d || '') + '</div>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+
+      if (docs.length) {
+        html += '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">';
+        docs.forEach(function(d) {
+          html += '<a href="' + d.url + '" target="_blank" onclick="event.stopPropagation()" ' +
+            'style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;' +
+            'background:var(--blue3);border:1px solid var(--blue);border-radius:8px;' +
+            'color:var(--blue);font-size:11px;font-weight:600;text-decoration:none">' +
+            '📎 ' + d.name + '</a>';
+        });
+        html += '</div>';
+      }
+
+      html += '<div style="margin-top:8px;text-align:left">' +
+        '<span style="font-size:11px;color:var(--blue);font-weight:600">فتح الطلب ←</span></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    document.getElementById('MB').innerHTML = html;
+  } catch(e) {
+    document.getElementById('MB').innerHTML =
+      '<div style="color:var(--danger);font-size:13px;text-align:center;padding:20px">خطأ: ' + e.message + '</div>';
+  }
+}
+
+// ── WHAT'S NEW PAGE ────────────────────────────────────────────────────────── 
+function openWhatsNew() {
+  document.getElementById('MT').textContent = '✨ ما الجديد';
+  document.getElementById('MB').innerHTML = buildWhatsNewHTML();
+  document.getElementById('OV').classList.add('open');
+}
+
+function buildWhatsNewHTML() {
+  var versions = [
+    {
+      version: 'الإصدار 2.5',
+      date: 'أبريل 2026',
+      color: '#1a6eb5',
+      bg: '#daeaf8',
+      features: [
+        {icon:'📜', title:'إفادة عقارية', desc:'خدمة جديدة — تقديم طلب إفادة عقارية مع قائمة المستندات المطلوبة تلقائياً'},
+        {icon:'📋', title:'قائمة المستندات المطلوبة', desc:'عند اختيار نوع الطلب تظهر المستندات الإلزامية والاختيارية في نموذج التقديم ولوحة التحكم'},
+        {icon:'📤', title:'تحديث الطلب من المواطن', desc:'يمكن للمواطن إضافة ملاحظات ورفع مستندات جديدة على طلبه بعد تقديمه'},
+        {icon:'📊', title:'تبويب تحديثات المواطنين', desc:'موظفو البلدية يرون جميع تحديثات المواطنين في تبويب مخصص'},
+        {icon:'🖨️', title:'طباعة الطلب', desc:'طباعة ملف PDF احترافي لأي طلب يشمل المعلومات والتوقيعات والسجل الكامل'},
+        {icon:'📧', title:'إشعارات البريد الإلكتروني', desc:'إشعارات تلقائية للمواطن والموظفين عند كل حدث مهم عبر Brevo'},
+      ]
+    },
+    {
+      version: 'الإصدار 2.0',
+      date: 'مارس 2026',
+      color: '#1e5429',
+      bg: '#d4edda',
+      features: [
+        {icon:'🎭', title:'نظام الأدوار المتقدم', desc:'إنشاء أدوار مخصصة مع 27 صلاحية وتخصيص كل موظف بشكل فردي'},
+        {icon:'👥', title:'إدارة الموظفين الكاملة', desc:'إضافة وتعديل وحذف الموظفين مع تغيير الأدوار والصلاحيات من لوحة التحكم'},
+        {icon:'📋', title:'إدارة التصنيفات', desc:'إضافة وتعديل وحذف تصنيفات الطلبات بشكل ديناميكي محفوظة في قاعدة البيانات'},
+        {icon:'📊', title:'نشاط الموظفين', desc:'تتبع كامل لنشاط كل موظف ومتى قام بكل عملية'},
+        {icon:'🧾', title:'سجل التعديلات', desc:'سجل دقيق لكل تعديل على الطلبات مع التاريخ والمستخدم'},
+        {icon:'📱', title:'إشعارات واتساب', desc:'إعداد إشعارات واتساب لكل دور حسب الأحداث المطلوبة'},
+      ]
+    },
+    {
+      version: 'الإصدار 1.0',
+      date: 'فبراير 2026',
+      color: '#6535a8',
+      bg: '#ede8f8',
+      features: [
+        {icon:'🏛️', title:'إطلاق النظام', desc:'نظام متابعة الطلبات والشكاوى لبلدية وادي الست'},
+        {icon:'🌐', title:'بوابة المواطن', desc:'صفحة خارجية لتقديم الطلبات ومتابعتها برقم مرجعي'},
+        {icon:'🔐', title:'نظام تسجيل الدخول', desc:'تسجيل دخول آمن للموظفين مع أدوار متعددة'},
+        {icon:'💾', title:'قاعدة بيانات Supabase', desc:'حفظ جميع البيانات بشكل آمن في السحابة'},
+        {icon:'📁', title:'رفع الملفات', desc:'رفع وحفظ المستندات المرفقة بكل طلب'},
+      ]
+    }
+  ];
+
+  var h = '<style>.wn-card{border-radius:12px;overflow:hidden;margin-bottom:16px}.wn-hdr{padding:10px 16px;display:flex;align-items:center;gap:10px;font-weight:800;font-size:14px}.wn-body{padding:10px 14px;display:flex;flex-direction:column;gap:6px}.wn-item{display:flex;align-items:flex-start;gap:10px;padding:8px;background:#fff;border-radius:8px;border:1px solid rgba(0,0,0,.06)}.wn-ico{font-size:20px;flex-shrink:0;margin-top:1px}.wn-txt-title{font-size:13px;font-weight:700;color:var(--text)}.wn-txt-desc{font-size:12px;color:var(--text3);margin-top:2px;line-height:1.5}</style>';
+
+  versions.forEach(function(v) {
+    h += '<div class="wn-card" style="border:1.5px solid ' + v.color + '20">';
+    h += '<div class="wn-hdr" style="background:' + v.bg + ';color:' + v.color + '">';
+    h += '<span style="font-size:22px">🚀</span>';
+    h += '<div><div>' + v.version + '</div><div style="font-size:11px;font-weight:400;opacity:.7">' + v.date + '</div></div>';
+    h += '<span style="margin-right:auto;background:' + v.color + ';color:#fff;padding:2px 10px;border-radius:20px;font-size:11px">' + v.features.length + ' ميزة</span>';
+    h += '</div>';
+    h += '<div class="wn-body" style="background:' + v.bg + '40">';
+    v.features.forEach(function(f) {
+      h += '<div class="wn-item">';
+      h += '<span class="wn-ico">' + f.icon + '</span>';
+      h += '<div><div class="wn-txt-title">' + f.title + '</div>';
+      h += '<div class="wn-txt-desc">' + f.desc + '</div></div>';
+      h += '</div>';
+    });
+    h += '</div></div>';
+  });
+
+  h += '<div style="text-align:center;padding:14px;font-size:12px;color:var(--text3);border-top:1px solid var(--border);margin-top:8px">';
+  h += 'بلدية وادي الست · Powered by IanTrading SAL © 2026</div>';
+
+  return h;
+}
+
+
+// ── WHAT'S NEW SYSTEM ─────────────────────────────────────────────────────────
+const WN_DEFAULT = [
+  {icon:'🎭', title:'نظام إدارة الأدوار المتقدم', desc:'إنشاء أدوار مخصصة مع تحديد الصلاحيات والإشعارات لكل دور', isNew:true, date:'2026-04-08', color:'var(--blue3)', titleColor:'var(--blue2)'},
+  {icon:'🌐', title:'بوابة المواطن المحسّنة', desc:'إمكانية متابعة الطلب وإرفاق مستندات إضافية وإضافة ملاحظات', isNew:true, date:'2026-04-08', color:'#f0f8ea', titleColor:'var(--green2)'},
+  {icon:'📧', title:'إشعارات البريد الإلكتروني', desc:'إرسال تلقائي عند تقديم طلب أو تغيير الحالة أو رد البلدية', isNew:true, date:'2026-04-08', color:'#f5f0ff', titleColor:'#6535a8'},
+  {icon:'🖨️', title:'طباعة الطلبات', desc:'طباعة ملف PDF احترافي لكل طلب مع التوقيعات والسجل الكامل', isNew:false, date:'2026-04-08', color:'#fff4e0', titleColor:'var(--warn)'},
+  {icon:'📋', title:'إدارة التصنيفات', desc:'إضافة وتعديل وحذف أنواع الطلبات بشكل ديناميكي', isNew:false, date:'2026-04-08', color:'#eef0f6', titleColor:'var(--text2)'},
+];
+
+function getWhatsNew() {
+  try { return JSON.parse(localStorage.getItem('wadi_whats_new') || 'null') || WN_DEFAULT; }
+  catch(e) { return WN_DEFAULT; }
+}
+function saveWhatsNew(data) {
+  localStorage.setItem('wadi_whats_new', JSON.stringify(data));
+  // Save to Supabase
+  if (dbR && sb) {
+    sb.from('settings').upsert({key:'wadi_whats_new', value:data, updated_at:new Date().toISOString()},{onConflict:'key'})
+    .then(function(r){ if(!r.error) console.log('✅ whats_new saved'); });
+  }
+  renderWhatsNewAdmin();
+  renderWhatsNewCitizen();
+}
+
+function renderWhatsNewAdmin() {
+  var el = document.getElementById('whats-new-preview');
+  if (!el) return;
+  var items = getWhatsNew();
+  el.innerHTML = items.map(function(item) {
+    return '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">'
+      + '<div style="flex:1">'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+      + '<div style="font-size:14px;font-weight:800;color:var(--text)">' + item.title + '</div>'
+      + (item.isNew !== false ? '<span style="background:#ff4757;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px">جديد</span>' : '')
+      + '</div>'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.6">' + item.desc + '</div>'
+      + '<div style="font-size:11px;color:var(--text3);margin-top:4px">' + (item.date || new Date().toISOString().slice(0,10)) + '</div>'
+      + '</div>'
+      + '<div style="width:44px;height:44px;border-radius:12px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">' + item.icon + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function renderWhatsNewCitizen() {
+  var items = getWhatsNew();
+  // Update citizen portal what's new body
+  var el = document.getElementById('whats-new-body');
+  if (!el) return;
+  el.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'
+    + items.map(function(item) {
+      return '<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:' + item.color + ';border-radius:10px">'
+        + '<span style="font-size:18px;flex-shrink:0">' + item.icon + '</span>'
+        + '<div><div style="font-size:13px;font-weight:700;color:' + item.titleColor + '">' + item.title + '</div>'
+        + '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + item.desc + '</div></div>'
+        + '</div>';
+    }).join('')
+    + '</div>'
+    + '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);font-size:11px;color:var(--text3);text-align:center">💡 لأي استفسار تواصل مع البلدية على الرقم الرسمي</div>';
+}
+
+function openEditWhatsNew() {
+  var items = getWhatsNew();
+  document.getElementById('MT').textContent = 'تعديل ما الجديد';
+  document.getElementById('MB').innerHTML =
+    '<div class="admin-section">'
+    + '<div class="admin-header">✨ تعديل قسم "ما الجديد"</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-bottom:14px">يظهر هذا المحتوى في بوابة المواطن والصفحة الرئيسية</div>'
+    + '<div id="wn-items-edit" style="display:flex;flex-direction:column;gap:10px">'
+    + items.map(function(item, i) {
+      return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px">'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+        + '<input id="wn-icon-' + i + '" value="' + item.icon + '" style="width:50px;padding:4px;border:1px solid var(--border);border-radius:6px;font-size:18px;text-align:center">'
+        + '<input id="wn-title-' + i + '" value="' + item.title + '" class="fi" style="flex:1;padding:6px 10px;height:auto;font-size:13px;font-weight:700">'
+        + '<button onclick="deleteWnItem(' + i + ')" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger)">🗑️</button>'
+        + '</div>'
+        + '<textarea id="wn-desc-' + i + '" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;resize:none;font-family:var(--font);direction:rtl" rows="2">' + item.desc + '</textarea>'
+        + '</div>';
+    }).join('')
+    + '</div>'
+    + '<button onclick="addWnItem()" class="btn" style="width:100%;justify-content:center;margin-top:10px">➕ إضافة بند جديد</button>'
+    + '<button onclick="saveWnItems()" class="btn bp" style="width:100%;justify-content:center;margin-top:8px">💾 حفظ وتحديث</button>'
+    + '</div>';
+  document.getElementById('OV').classList.add('open');
+}
+
+function addWnItem() {
+  var list = document.getElementById('wn-items-edit');
+  if (!list) return;
+  var i = list.children.length;
+  var div = document.createElement('div');
+  div.style.cssText = 'background:var(--bg2);border:1.5px solid var(--blue);border-radius:10px;padding:12px';
+  div.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+    + '<input id="wn-icon-' + i + '" value="🆕" style="width:50px;padding:4px;border:1px solid var(--border);border-radius:6px;font-size:18px;text-align:center">'
+    + '<input id="wn-title-' + i + '" placeholder="العنوان" class="fi" style="flex:1;padding:6px 10px;height:auto;font-size:13px;font-weight:700">'
+    + '<button onclick="wnDelNew(this)" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger)">🗑️</button>'
+    + '</div>'
+    + '<textarea id="wn-desc-' + i + '" placeholder="الوصف…" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;resize:none;font-family:var(--font);direction:rtl" rows="2"></textarea>';
+  list.appendChild(div);
+}
+
+function deleteWnItem(i) {
+  var items = getWhatsNew();
+  items.splice(i, 1);
+  saveWhatsNew(items);
+  openEditWhatsNew();
+}
+
+function saveWnItems() {
+  var list = document.getElementById('wn-items-edit');
+  if (!list) return;
+  var newItems = [];
+  var colors = ['var(--blue3)','#f0f8ea','#fff4e0','#f5f0ff','#fdeaea','#eef0f6'];
+  var titleColors = ['var(--blue2)','var(--green2)','var(--warn)','#6535a8','var(--danger)','var(--text2)'];
+  for (var i = 0; i < list.children.length; i++) {
+    var icon = document.getElementById('wn-icon-' + i);
+    var title = document.getElementById('wn-title-' + i);
+    var desc = document.getElementById('wn-desc-' + i);
+    if (!title || !title.value.trim()) continue;
+    newItems.push({
+      icon: icon ? icon.value.trim() : '✨',
+      title: title.value.trim(),
+      desc: desc ? desc.value.trim() : '',
+      isNew: true,
+      date: new Date().toISOString().slice(0,10),
+      color: colors[i % colors.length],
+      titleColor: titleColors[i % titleColors.length],
+    });
+  }
+  if (!newItems.length) { toast('أضف بنداً واحداً على الأقل', 'err'); return; }
+  saveWhatsNew(newItems);
+  toast('✅ تم حفظ قسم ما الجديد');
+  closeM();
+}
+
+// Load from Supabase on login
+async function loadWhatsNewFromDB() {
+  if (!dbR || !sb) return;
+  try {
+    var res = await sb.from('settings').select('value').eq('key','wadi_whats_new').single();
+    if (!res.error && res.data && res.data.value) {
+      localStorage.setItem('wadi_whats_new', JSON.stringify(res.data.value));
+    }
+  } catch(e) {}
+  renderWhatsNewAdmin();
+  renderWhatsNewCitizen();
+}
+
+
+function wnDelNew(btn){var p=btn.parentElement;if(p&&p.parentElement)p.parentElement.remove();}
 </script>
 <div style="position:fixed;bottom:0;left:0;right:0;background:rgba(15,77,130,0.95);color:rgba(255,255,255,0.6);text-align:center;padding:8px;font-size:12px;z-index:9999;pointer-events:none;direction:ltr">Powered by <strong style="color:#fff">IanTrading SAL</strong> &nbsp;·&nbsp; All rights reserved © 2026</div>
 </body>
 </html>
+
+        <!-- WHAT'S NEW ADMIN WIDGET -->
+        <div id="whats-new-admin" style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div style="font-size:14px;font-weight:800;color:var(--blue2)">✨ ما الجديد</div>
+            <div style="font-size:11px;color:var(--text3)">مرئي للمواطنين</div>
+          </div>
+          <div id="whats-new-preview"></div>
+        </div>
