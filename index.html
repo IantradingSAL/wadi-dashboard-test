@@ -373,8 +373,13 @@ function tick(){
     var hasUpdates=(cases||[]).some(function(c){
       return (c.timeline||[]).some(function(t){return t.cls==="citizen"||t.by==="المواطن";});
     });
+    // Exclude reviewed from badge count
+    var unreviewed = cases.filter(function(c){
+      if(isCitReviewed(c.id)) return false;
+      return (c.timeline||[]).some(function(t){return t.cls==='citizen'||t.by==='المواطن';});
+    });
     var badge=document.getElementById("cit-updates-badge");
-    if(badge)badge.style.display=hasUpdates?"inline":"none";
+    if(badge){badge.style.display=unreviewed.length?"inline":"none";badge.textContent=unreviewed.length||'!';}
   }catch(e){}
 document.getElementById('LD').textContent=new Date().toLocaleString('ar-LB',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}
 function getRoleCfg(){return ROLE_CFG[userRole]||ROLE_CFG.officer;}
@@ -741,7 +746,29 @@ function render(){
 
 // ── DETAIL ────────────────────────────────────────────────────────────────────
 function openDetail(id){
+  // Auto-mark citizen updates as reviewed when opening case
+  if (typeof isCitReviewed === 'function' && !isCitReviewed(id)) {
+    var hasCitUpdate = false;
+    var caseObj = cases.find(function(x){return String(x.id)===String(id);});
+    if (caseObj) {
+      hasCitUpdate = (caseObj.timeline||[]).some(function(t){return t.cls==='citizen'||t.by==='المواطن';});
+    }
+    if (hasCitUpdate) {
+      localStorage.setItem('cit_reviewed_'+id, new Date().toISOString().slice(0,10));
+      // Update badge
+      var unreviewedNow = cases.filter(function(c){
+        if(isCitReviewed(c.id)) return false;
+        return (c.timeline||[]).some(function(t){return t.cls==='citizen'||t.by==='المواطن';});
+      });
+      var b=document.getElementById('cit-updates-badge');
+      if(b){b.style.display=unreviewedNow.length?'inline':'none';b.textContent=unreviewedNow.length||'!';}
+    }
+  }
   const c=cases.find(x=>String(x.id)===String(id));if(!c)return;
+  // Auto-mark citizen updates as reviewed
+  localStorage.setItem('cit_reviewed_'+String(id),'1');
+  // Update badge
+  var badge=document.getElementById('cit-updates-badge');if(badge)badge.style.display='none';
   const R=getRoleCfg();
   document.getElementById('MT').textContent='طلب #'+String(id).slice(-4);
   const[fc,bc]=avc(c.name);
@@ -1221,7 +1248,7 @@ function openSettings(){
       <div class="ron" style="margin-top:14px">هذه النافذة للعرض فقط داخل هذا الإصدار الثابت من الملف.</div>
       <div style="display:flex;gap:9px;margin-top:12px">
         <button class="btn bg" style="flex:1;justify-content:center" onclick="closeM()">إغلاق</button>
-      <button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="closeM();openEditWhatsNew()">✨ تعديل قسم ما الجديد</button>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="closeM();openEditWhatsNew()">✨ تعديل قسم ما الجديد</button>\n      <button class="btn" style="width:100%;justify-content:center;margin-top:8px" onclick="closeM();openManageRequiredDocs()">📋 إدارة المستندات المطلوبة</button>
       </div>
     </div>`;
   document.getElementById('OV').classList.add('open');
@@ -3208,6 +3235,14 @@ async function saveWhatsNew() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function openCitMessages() {
+  // Mark all as read immediately
+  var badge = document.getElementById('cit-msg-badge');
+  if (badge) { badge.style.display = 'none'; badge.textContent = '0'; }
+  var navBadge = document.getElementById('cit-updates-badge');
+  if (navBadge) { navBadge.style.display = 'none'; }
+  // Save last-viewed timestamp
+  localStorage.setItem('cit_msgs_last_viewed', new Date().toISOString());
+
   document.getElementById('MT').textContent = '💬 رسائل المواطنين';
   document.getElementById('MB').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3)">⏳ جاري التحميل…</div>';
   document.getElementById('OV').classList.add('open');
@@ -3229,7 +3264,10 @@ async function openCitMessages() {
     });
 
     msgs.sort(function(a,b){ return b.date.localeCompare(a.date); });
-    var unread = msgs.filter(function(m){return !m.read;}).length;
+    var lastViewed = localStorage.getItem('cit_msgs_last_viewed') || '';
+    var unread = lastViewed ? msgs.filter(function(m){
+      return m.date && m.date > lastViewed;
+    }).length : msgs.filter(function(m){return !m.read;}).length;
 
     // Update badge
     var badge = document.getElementById('cit-msg-badge');
@@ -3544,6 +3582,7 @@ async function openCitizenUpdates() {
 
     // Filter cases that have citizen updates (timeline entries with cls:'citizen')
     var updated = (res.data || []).filter(function(c) {
+      if (localStorage.getItem('cit_reviewed_' + c.id)) return false;
       var tl = c.timeline || [];
       return tl.some(function(t) { return t.cls === 'citizen' || (t.by === 'المواطن'); });
     });
@@ -3568,7 +3607,7 @@ async function openCitizenUpdates() {
       var typeLabel = typeof getTLabel === 'function' ? getTLabel(c.type) : c.type;
       var statusLabel = (typeof SL !== 'undefined' ? SL : {})[c.status] || c.status;
 
-      html += '<div style="background:var(--bg2);border:1.5px solid var(--blue3);border-radius:12px;padding:14px;cursor:pointer" onclick="openDetail(' + c.id + ')">';
+      html += '<div data-cid="' + c.id + '" style="background:var(--bg2);border:1.5px solid var(--blue3);border-radius:12px;padding:14px;cursor:pointer;transition:opacity .3s" onclick="openDetail(' + c.id + ')">';
       html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">';
       html += '<div style="width:38px;height:38px;border-radius:50%;background:var(--blue3);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">';
       html += (c.name || '?').split(' ').slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase() || '?';
@@ -3607,8 +3646,12 @@ async function openCitizenUpdates() {
         html += '</div>';
       }
 
-      html += '<div style="margin-top:8px;text-align:left">' +
-        '<span style="font-size:11px;color:var(--blue);font-weight:600">فتح الطلب ←</span></div>';
+      html += '<div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between">';
+      html += '<span style="font-size:11px;color:var(--blue);font-weight:600">اضغط لفتح الطلب ←</span>';
+      html += '<button onclick="event.stopPropagation();dismissCitUpdate(' + c.id + ')" ' +
+        'style="padding:5px 14px;background:var(--green3);color:var(--green2);border:1.5px solid var(--green);border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)">' +
+        '✓ تم المراجعة</button>';
+      html += '</div>';
       html += '</div>';
     });
     html += '</div>';
@@ -3916,16 +3959,180 @@ function closeWnModal() {
   document.body.style.overflow = '';
 }
 
+
+// ── DISMISS CITIZEN UPDATE ────────────────────────────────────────────────────
+function dismissCitUpdate(caseId) {
+  var key = 'cit_reviewed_' + caseId;
+  localStorage.setItem(key, '1');
+  // Find and remove the card by data-cid
+  var card = document.querySelector('[data-cid="' + caseId + '"]');
+  if (card) {
+    card.style.opacity = '0';
+    card.style.transition = 'opacity .3s';
+    setTimeout(function(){ 
+      if (card.parentElement) card.parentElement.removeChild(card);
+      // Check if no more cards
+      var mb = document.getElementById('MB');
+      if (mb) {
+        var remaining = mb.querySelectorAll('[data-cid]');
+        if (!remaining.length) {
+          mb.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3)">' +
+            '<div style="font-size:48px;margin-bottom:12px">✅</div>' +
+            '<div style="font-size:15px;font-weight:700">تم مراجعة جميع التحديثات</div>' +
+            '</div>';
+        }
+      }
+    }, 300);
+  }
+  toast('✅ تم تحديد طلب #' + caseId + ' كمراجع');
+  // Update badge
+  var unreviewedAfter = (typeof cases !== 'undefined' ? cases : []).filter(function(c){
+    if(isCitReviewed(c.id)) return false;
+    return (c.timeline||[]).some(function(t){return t.cls==='citizen'||t.by==='المواطن';});
+  });
+  var bd=document.getElementById('cit-updates-badge');
+  if(bd){bd.style.display=unreviewedAfter.length?'inline':'none';bd.textContent=unreviewedAfter.length||'!';}
+}
+
+function isCitReviewed(caseId) {
+  return !!localStorage.getItem('cit_reviewed_' + caseId);
+}
+
+// ── MANAGE REQUIRED DOCS ──────────────────────────────────────────────────────
+function openManageRequiredDocs() {
+  document.getElementById('MT').textContent = 'إدارة المستندات المطلوبة';
+  var cats = typeof getCats === 'function' ? getCats() : [
+    {id:'complaint',icon:'⚠️',label:'شكوى'},
+    {id:'welfare',icon:'🤝',label:'رعاية اجتماعية'},
+    {id:'permit',icon:'🏗️',label:'ترخيص'},
+    {id:'inquiry',icon:'❓',label:'استفسار'},
+    {id:'ifada',icon:'📜',label:'إفادة عقارية'},
+  ];
+
+  var tabsHtml = cats.map(function(c, i) {
+    return '<div class="adtab' + (i===0?' on':'') + '" onclick="adTab(this,\'rdoc-' + c.id + '\')" data-cat="' + c.id + '">' + c.icon + ' ' + c.label + '</div>';
+  }).join('');
+
+  var panelsHtml = cats.map(function(c, i) {
+    return '<div id="rdoc-' + c.id + '" style="display:' + (i===0?'block':'none') + '">' + buildDocPanel(c.id, c.label) + '</div>';
+  }).join('');
+
+  document.getElementById('MB').innerHTML =
+    '<style>.adtab{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:var(--bg2);color:var(--text2)}.adtab.on{background:var(--blue);color:#fff;border-color:var(--blue)}</style>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">' + tabsHtml + '</div>' +
+    panelsHtml;
+  document.getElementById('OV').classList.add('open');
+}
+
+function buildDocPanel(catId, catLabel) {
+  var rdocs = getRequiredDocs(catId);
+  var rows = rdocs.map(function(d, i) {
+    return '<div data-idx="' + i + '" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:8px">' +
+      '<input value="' + d.icon + '" id="rdi-' + catId + '-' + i + '" style="width:44px;padding:4px;border:1px solid var(--border);border-radius:6px;font-size:18px;text-align:center">' +
+      '<input value="' + d.name + '" id="rdn-' + catId + '-' + i + '" class="fi" style="flex:1;padding:6px 10px;height:auto;font-size:13px" placeholder="اسم المستند">' +
+      '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;white-space:nowrap">' +
+        '<input type="checkbox" id="rdr-' + catId + '-' + i + '" ' + (d.required?'checked':'') + ' style="accent-color:var(--danger);width:14px;height:14px"> إلزامي</label>' +
+      '<button onclick="deleteRDoc(\'' + catId + '\',' + i + ')" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);padding:0 4px">🗑️</button>' +
+    '</div>';
+  }).join('');
+
+  return '<div id="rdoc-body-' + catId + '">' + rows + '</div>' +
+    '<button onclick="addRDocRow(\'' + catId + '\')" class="btn" style="width:100%;justify-content:center;margin-bottom:10px">➕ إضافة مستند</button>' +
+    '<button onclick="saveRDocs(\'' + catId + '\',\'' + catLabel + '\')" class="btn bp" style="width:100%;justify-content:center">💾 حفظ</button>';
+}
+
+function getRequiredDocs(catId) {
+  try {
+    var saved = JSON.parse(localStorage.getItem('rdocs_' + catId) || 'null');
+    if (saved) return saved;
+  } catch(e) {}
+  // Return from REQUIRED_DOCS default if available
+  if (typeof REQUIRED_DOCS !== 'undefined' && REQUIRED_DOCS[catId]) {
+    return REQUIRED_DOCS[catId].docs || [];
+  }
+  return [];
+}
+
+function saveRDocsToStorage(catId, docs) {
+  localStorage.setItem('rdocs_' + catId, JSON.stringify(docs));
+  // Save to Supabase settings
+  if (dbR && sb) {
+    var key = 'rdocs_' + catId;
+    sb.from('settings').upsert({key:key, value:docs, updated_at:new Date().toISOString()},{onConflict:'key'})
+    .catch(function(e){ console.log('saveRDocs:', e.message); });
+  }
+  // Update REQUIRED_DOCS in memory
+  if (typeof REQUIRED_DOCS !== 'undefined' && REQUIRED_DOCS[catId]) {
+    REQUIRED_DOCS[catId].docs = docs;
+  }
+}
+
+function addRDocRow(catId) {
+  var body = document.getElementById('rdoc-body-' + catId);
+  if (!body) return;
+  var i = body.children.length;
+  var div = document.createElement('div');
+  div.setAttribute('data-idx', i);
+  div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg2);border:1.5px solid var(--blue);border-radius:10px;margin-bottom:8px';
+  div.innerHTML =
+    '<input value="📄" id="rdi-' + catId + '-' + i + '" style="width:44px;padding:4px;border:1px solid var(--border);border-radius:6px;font-size:18px;text-align:center">' +
+    '<input placeholder="اسم المستند الجديد" id="rdn-' + catId + '-' + i + '" class="fi" style="flex:1;padding:6px 10px;height:auto;font-size:13px">' +
+    '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;white-space:nowrap"><input type="checkbox" id="rdr-' + catId + '-' + i + '" checked style="accent-color:var(--danger);width:14px;height:14px"> إلزامي</label>' +
+    '<button onclick="this.closest(\'[data-idx]\').remove()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);padding:0 4px">🗑️</button>';
+  body.appendChild(div);
+}
+
+function deleteRDoc(catId, idx) {
+  var docs = getRequiredDocs(catId);
+  docs.splice(idx, 1);
+  saveRDocsToStorage(catId, docs);
+  // Rebuild panel
+  var panel = document.getElementById('rdoc-' + catId);
+  var cats = typeof getCats === 'function' ? getCats() : [];
+  var cat = cats.find(function(c){return c.id===catId;}) || {label:catId};
+  if (panel) panel.innerHTML = buildDocPanel(catId, cat.label);
+  toast('🗑️ تم حذف المستند');
+}
+
+function saveRDocs(catId, catLabel) {
+  var body = document.getElementById('rdoc-body-' + catId);
+  if (!body) return;
+  var docs = [];
+  var rows = body.querySelectorAll('[data-idx]');
+  rows.forEach(function(row, i) {
+    var ico = document.getElementById('rdi-' + catId + '-' + i);
+    var name = document.getElementById('rdn-' + catId + '-' + i);
+    var req = document.getElementById('rdr-' + catId + '-' + i);
+    if (!name || !name.value.trim()) return;
+    docs.push({
+      icon: ico ? ico.value.trim() : '📄',
+      name: name.value.trim(),
+      required: req ? req.checked : true,
+    });
+  });
+  saveRDocsToStorage(catId, docs);
+  toast('✅ تم حفظ مستندات ' + catLabel);
+}
+
+// Load required docs from Supabase on login
+async function loadRequiredDocsFromDB() {
+  if (!dbR || !sb) return;
+  try {
+    var cats = typeof getCats === 'function' ? getCats() : [];
+    for (var i = 0; i < cats.length; i++) {
+      var key = 'rdocs_' + cats[i].id;
+      var res = await sb.from('settings').select('value').eq('key', key).single();
+      if (!res.error && res.data && res.data.value) {
+        localStorage.setItem(key, JSON.stringify(res.data.value));
+        if (typeof REQUIRED_DOCS !== 'undefined' && REQUIRED_DOCS[cats[i].id]) {
+          REQUIRED_DOCS[cats[i].id].docs = res.data.value;
+        }
+      }
+    }
+  } catch(e) { console.log('loadRequiredDocsFromDB:', e.message); }
+}
+
 </script>
 <div style="position:fixed;bottom:0;left:0;right:0;background:rgba(15,77,130,0.95);color:rgba(255,255,255,0.6);text-align:center;padding:8px;font-size:12px;z-index:9999;pointer-events:none;direction:ltr">Powered by <strong style="color:#fff">IanTrading SAL</strong> &nbsp;·&nbsp; All rights reserved © 2026</div>
 </body>
 </html>
-
-        <!-- WHAT'S NEW ADMIN WIDGET -->
-        <div id="whats-new-admin" style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <div style="font-size:14px;font-weight:800;color:var(--blue2)">✨ ما الجديد</div>
-            <div style="font-size:11px;color:var(--text3)">مرئي للمواطنين</div>
-          </div>
-          <div id="whats-new-preview"></div>
-        </div>
